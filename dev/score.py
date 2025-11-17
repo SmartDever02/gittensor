@@ -129,6 +129,7 @@ def calculate_pr_score(
     
     # Step 7: Build result
     result = {
+        "pr_link": f"https://github.com/{repository}/pull/{pr_number}",
         "pr_number": pr_number,
         "repository": repository,
         "title": pr.title,
