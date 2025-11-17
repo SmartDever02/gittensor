@@ -48,19 +48,6 @@ from common import (
 )
 from gittensor.validator.utils.datetime_utils import parse_github_timestamp
 
-
-# ============================================================================
-# CONFIGURATION
-# ============================================================================
-REPOSITORY = "entrius/gittensor"             # e.g., "bitcoin/bitcoin"
-# REPOSITORY = "happyfish100/fastdfs"             # e.g., "bitcoin/bitcoin"
-PR_NUMBER = 20                       # PR number to score
-# PR_NUMBER = 793                       # PR number to score
-
-# Output file
-OUTPUT_FILE = ""
-# ============================================================================
-
 def calculate_pr_score(
     repository: str,
     pr_number: int,
@@ -109,7 +96,7 @@ def calculate_pr_score(
     
     # Step 5: Use validator's score_pull_requests() function
     # This is the EXACT function validators use (lines 30-91 in reward.py)
-    miner_eval = score_pull_requests(
+    miner_eval, valid_prs = score_pull_requests(
         uid=0,
         miner_eval=miner_eval,
         valid_raw_prs=[graphql_pr],  # List with single PR
@@ -190,5 +177,10 @@ def calculate_pr_score(
         (datetime.now(timezone.utc) - pr.merged_at).total_seconds() / 86400, 1
     ) if pr.merged_at else None
     result["scoring_breakdown"]["has_gittensor_tag"] = pr.gittensor_tagged
+    
+    result["analytics"] = {
+        "updated_score": float(result["scoring_breakdown"]["final_score"]),
+        "penalties": valid_prs[0].penalty_list
+    }
     
     return result

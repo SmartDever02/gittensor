@@ -87,11 +87,7 @@ def main():
         )
         
         ## Add analytics
-        result["analytics"] = {
-            "original_score": float(pr["score"]),
-            "updated_score": float(result["scoring_breakdown"]["final_score"]),
-            "reason": "TODO"
-        }
+        result["analytics"]["original_score"] = float(pr["score"])
 
         # Check for errors
         if "error" in result:
