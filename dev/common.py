@@ -1,14 +1,19 @@
 import bittensor as bt
 import requests
+import os
+from dotenv import load_dotenv
 
 from gittensor.utils.github_api_tools import (
     make_headers
 )
-from gittensor.validator.utils.datetime_utils import parse_github_timestamp
 from gittensor.constants import BASE_GITHUB_API_URL
 from gittensor.classes import Issue
 
-GITHUB_PAT = "YOUR_GITHUB_PAT"  # Replace with your GitHub PAT
+load_dotenv()
+GITHUB_PAT = os.getenv("GITHUB_PAT")
+
+if not GITHUB_PAT:
+    raise ValueError("GITHUB_PAT environment variable is not set!")
 
 def fetch_pr_from_rest_api(repository: str, pr_number: int, github_pat: str) -> dict:
     """
