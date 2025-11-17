@@ -156,3 +156,22 @@ def convert_rest_pr_to_graphql_format(pr_data: dict, repository: str, issues: li
     }
     
     return graphql_pr
+
+# Fetch all prs from gittensor.io api
+def fetch_all_commits(base_url="https://api.gittensor.io/dash/commits", limit=15):
+    page = 1
+    all_items = []
+
+    while True:
+        response = requests.get(base_url, params={"page": page, "limit": limit})
+        response.raise_for_status()
+
+        items = response.json()   # <-- API returns a raw list
+
+        if not items:             # Stop when API returns an empty array
+            break
+
+        all_items.extend(items)
+        page += 1
+
+    return all_items
