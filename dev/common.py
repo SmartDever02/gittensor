@@ -2,10 +2,11 @@ import bittensor as bt
 import requests
 
 from gittensor.utils.github_api_tools import (
-    get_pull_request_file_changes,
     make_headers
 )
+from gittensor.validator.utils.datetime_utils import parse_github_timestamp
 from gittensor.constants import BASE_GITHUB_API_URL
+from gittensor.classes import Issue
 
 GITHUB_PAT = "YOUR_GITHUB_PAT"  # Replace with your GitHub PAT
 

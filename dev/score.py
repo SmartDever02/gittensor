@@ -15,38 +15,27 @@ Configuration:
     - Set GITHUB_PAT, REPOSITORY, PR_NUMBER in the script
 """
 
-import json
 import sys
 import os
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Dict
 
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import bittensor as bt
-import requests
 
-from gittensor.classes import PullRequest, MinerEvaluation, Issue
+from gittensor.classes import MinerEvaluation
 
 from gittensor.validator.evaluation.reward import score_pull_requests
 from gittensor.validator.evaluation.scoring import (
     apply_time_decay_for_repository_contributions,
     apply_boost_for_gittensor_tag_in_pr_description,
-    apply_repository_uniqueness_boost
-)
-from gittensor.validator.utils.load_weights import (
-    load_programming_language_weights,
-    load_master_repo_weights
 )
 from common import (
-    GITHUB_PAT,
     fetch_pr_from_rest_api,
     fetch_pr_issues,
     convert_rest_pr_to_graphql_format
 )
-from gittensor.validator.utils.datetime_utils import parse_github_timestamp
 
 def calculate_pr_score(
     repository: str,
