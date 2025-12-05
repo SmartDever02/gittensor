@@ -36,6 +36,25 @@ def is_comment_line(content: str, file_extension: Optional[str] = None) -> bool:
     
     return any(re.match(pattern, content) for pattern in patterns_to_check)
 
+def looks_like_code(content: str) -> bool:
+    """Check if content looks like actual code (not comment continuation)."""
+    stripped = content.strip()
+    if not stripped:
+        return False
+    
+    # Common code patterns: operators, assignments, function calls, etc.
+    code_indicators = [
+        r'[=+\-*/%<>!&|]',  # Operators
+        r'\(',               # Function calls
+        r'\[',               # Indexing
+        r'\{',               # Dict/set literals
+        r'\.\w+',            # Method calls
+        r'^\w+\s*=',         # Variable assignment
+        r'^(if|for|while|def|class|return|import|from)\s',  # Keywords
+    ]
+    
+    return any(re.search(pattern, stripped) for pattern in code_indicators)
+
 def count_non_scoreable_lines(patch: str, max_scoreable_lines: Optional[int] = None, file_extension: Optional[str] = None) -> int:
     """Count lines that shouldn't contribute to the score (blank, comment, etc)."""
     if not patch:
@@ -44,21 +63,46 @@ def count_non_scoreable_lines(patch: str, max_scoreable_lines: Optional[int] = N
     non_scoreable = 0
     lines = patch.split("\n")
     scoreable_count = 0
-    skip_next = False  # Track if next line should be skipped
+    skip_next = False
+    in_comment_block = False
     
     for i, line in enumerate(lines):
         if skip_next:
             skip_next = False
+            in_comment_block = False
             continue
             
         if not is_single_diff_line(line):
+            in_comment_block = False
             continue
         
         content = line[1:]
+        is_comment = is_comment_line(content, file_extension)
+        
+        # Skip continuation lines (don't count as non-scoreable to prevent exploit)
+        if in_comment_block and not is_comment and not looks_like_code(content):
+            # Reset if next line is comment or code, otherwise stay in block
+            if i + 1 < len(lines):
+                next_line = lines[i + 1]
+                if is_single_diff_line(next_line) and next_line.startswith("+"):
+                    next_content = next_line[1:]
+                    if is_comment_line(next_content, file_extension) or looks_like_code(next_content):
+                        in_comment_block = False
+            else:
+                in_comment_block = False
+            continue
         
         # Blank lines and comments
-        if content.strip() == "" or is_comment_line(content, file_extension):
+        if content.strip() == "" or is_comment:
             non_scoreable += 1
+            in_comment_block = False  # Reset on blank or new comment
+            # Check if next line might be a continuation
+            if is_comment and line.startswith("+") and i + 1 < len(lines):
+                next_line = lines[i + 1]
+                if is_single_diff_line(next_line) and next_line.startswith("+"):
+                    next_content = next_line[1:]
+                    if not is_comment_line(next_content, file_extension) and not looks_like_code(next_content) and next_content.strip():
+                        in_comment_block = True
             continue
         
         # Typo corrections: deletion followed by similar addition
@@ -67,7 +111,8 @@ def count_non_scoreable_lines(patch: str, max_scoreable_lines: Optional[int] = N
             if is_single_diff_line(next_line) and next_line.startswith("+"):
                 if is_token_typo(content, next_line[1:]):
                     non_scoreable += 2
-                    skip_next = True  # Skip the + line in next iteration
+                    skip_next = True
+                    in_comment_block = False
                     continue
         
         # This line is scoreable
