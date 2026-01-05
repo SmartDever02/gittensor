@@ -12,17 +12,22 @@ DO NOTHING
 BULK_UPSERT_PULL_REQUESTS = """
 INSERT INTO pull_requests (
     number, repository_full_name, uid, hotkey, github_id, title, author_login,
-    merged_at, pr_created_at,
+    merged_at, pr_created_at, pr_state,
     repo_weight_multiplier, base_score, issue_multiplier,
     open_pr_spam_multiplier, repository_uniqueness_multiplier, time_decay_multiplier,
-    gittensor_tag_multiplier, merge_success_multiplier, earned_score,
-    additions, deletions, commits, total_lines_scored, gittensor_tagged,
+    gittensor_tag_multiplier, credibility_multiplier, raw_credibility, credibility_scalar,
+    earned_score, collateral_score,
+    additions, deletions, commits, total_lines_scored, gittensor_tagged, low_value_pr,
     merged_by_login, description, last_edited_at
 ) VALUES %s
 ON CONFLICT (number, repository_full_name)
 DO UPDATE SET
     uid = EXCLUDED.uid,
     hotkey = EXCLUDED.hotkey,
+    title = EXCLUDED.title,
+    author_login = EXCLUDED.author_login,
+    merged_at = EXCLUDED.merged_at,
+    pr_state = EXCLUDED.pr_state,
     repo_weight_multiplier = EXCLUDED.repo_weight_multiplier,
     base_score = EXCLUDED.base_score,
     issue_multiplier = EXCLUDED.issue_multiplier,
@@ -30,10 +35,18 @@ DO UPDATE SET
     repository_uniqueness_multiplier = EXCLUDED.repository_uniqueness_multiplier,
     time_decay_multiplier = EXCLUDED.time_decay_multiplier,
     gittensor_tag_multiplier = EXCLUDED.gittensor_tag_multiplier,
-    merge_success_multiplier = EXCLUDED.merge_success_multiplier,
+    credibility_multiplier = EXCLUDED.credibility_multiplier,
+    raw_credibility = EXCLUDED.raw_credibility,
+    credibility_scalar = EXCLUDED.credibility_scalar,
     earned_score = EXCLUDED.earned_score,
+    collateral_score = EXCLUDED.collateral_score,
+    additions = EXCLUDED.additions,
+    deletions = EXCLUDED.deletions,
+    commits = EXCLUDED.commits,
     total_lines_scored = EXCLUDED.total_lines_scored,
     gittensor_tagged = EXCLUDED.gittensor_tagged,
+    low_value_pr = EXCLUDED.low_value_pr,
+    merged_by_login = EXCLUDED.merged_by_login,
     description = EXCLUDED.description,
     last_edited_at = EXCLUDED.last_edited_at,
     updated_at = NOW()
@@ -42,10 +55,16 @@ DO UPDATE SET
 # Issue Queries
 BULK_UPSERT_ISSUES = """
 INSERT INTO issues (
-    number, pr_number, repository_full_name, title, created_at, closed_at
+    number, pr_number, repository_full_name, title, created_at, closed_at,
+    author_login, state, author_association
 ) VALUES %s
 ON CONFLICT (number, repository_full_name)
-DO NOTHING
+DO UPDATE SET
+    title = EXCLUDED.title,
+    closed_at = EXCLUDED.closed_at,
+    author_login = EXCLUDED.author_login,
+    state = EXCLUDED.state,
+    author_association = EXCLUDED.author_association
 """
 
 # File Change Queries
@@ -54,25 +73,52 @@ INSERT INTO file_changes (
     pr_number, repository_full_name, filename, changes, additions, deletions, status, patch, file_extension
 ) VALUES %s
 ON CONFLICT (pr_number, repository_full_name, filename)
-DO NOTHING
+DO UPDATE SET
+    changes = EXCLUDED.changes,
+    additions = EXCLUDED.additions,
+    deletions = EXCLUDED.deletions,
+    status = EXCLUDED.status,
+    patch = EXCLUDED.patch,
+    file_extension = EXCLUDED.file_extension
 """
 
 # Miner Evaluation Queries
 BULK_UPSERT_MINER_EVALUATION = """
 INSERT INTO miner_evaluations (
-    uid, hotkey, github_id, failed_reason, base_total_score, total_score,
-    total_lines_changed, total_open_prs, total_closed_prs, total_merged_prs, total_prs, unique_repos_count
+    uid, hotkey, github_id, failed_reason, base_total_score, total_score, total_collateral_score,
+    total_lines_changed, total_open_prs, total_closed_prs, total_merged_prs, total_prs, unique_repos_count,
+    current_tier,
+    bronze_merged_prs, bronze_closed_prs, bronze_total_prs, bronze_collateral_score, bronze_score,
+    silver_merged_prs, silver_closed_prs, silver_total_prs, silver_collateral_score, silver_score,
+    gold_merged_prs, gold_closed_prs, gold_total_prs, gold_collateral_score, gold_score
 ) VALUES %s
 ON CONFLICT (uid, hotkey, github_id)
 DO UPDATE SET
     failed_reason = EXCLUDED.failed_reason,
     base_total_score = EXCLUDED.base_total_score,
     total_score = EXCLUDED.total_score,
+    total_collateral_score = EXCLUDED.total_collateral_score,
     total_lines_changed = EXCLUDED.total_lines_changed,
     total_open_prs = EXCLUDED.total_open_prs,
     total_closed_prs = EXCLUDED.total_closed_prs,
     total_merged_prs = EXCLUDED.total_merged_prs,
     total_prs = EXCLUDED.total_prs,
     unique_repos_count = EXCLUDED.unique_repos_count,
+    current_tier = EXCLUDED.current_tier,
+    bronze_merged_prs = EXCLUDED.bronze_merged_prs,
+    bronze_closed_prs = EXCLUDED.bronze_closed_prs,
+    bronze_total_prs = EXCLUDED.bronze_total_prs,
+    bronze_collateral_score = EXCLUDED.bronze_collateral_score,
+    bronze_score = EXCLUDED.bronze_score,
+    silver_merged_prs = EXCLUDED.silver_merged_prs,
+    silver_closed_prs = EXCLUDED.silver_closed_prs,
+    silver_total_prs = EXCLUDED.silver_total_prs,
+    silver_collateral_score = EXCLUDED.silver_collateral_score,
+    silver_score = EXCLUDED.silver_score,
+    gold_merged_prs = EXCLUDED.gold_merged_prs,
+    gold_closed_prs = EXCLUDED.gold_closed_prs,
+    gold_total_prs = EXCLUDED.gold_total_prs,
+    gold_collateral_score = EXCLUDED.gold_collateral_score,
+    gold_score = EXCLUDED.gold_score,
     updated_at = NOW()
 """

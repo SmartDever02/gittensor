@@ -45,7 +45,7 @@ class DatabaseStorage:
             StorageResult with success status, errors, and counts
         """
         if not self.is_enabled():
-            return StorageResult(success=False, errors=["Database storage not enabled"], stored_counts={})
+            return StorageResult(success=False, errors=['Database storage not enabled'], stored_counts={})
 
         result = StorageResult(success=True, errors=[], stored_counts={})
 
@@ -55,14 +55,19 @@ class DatabaseStorage:
 
             # Store all entities using bulk methods
             miner = Miner(miner_eval.uid, miner_eval.hotkey, miner_eval.github_id)
-            pull_requests = miner_eval.pull_requests
-            all_issues = miner_eval.get_all_issues()
-            all_file_changes = miner_eval.get_all_file_changes()
 
             result.stored_counts['miners'] = self.repo.set_miner(miner)
-            result.stored_counts['pull_requests'] = self.repo.store_pull_requests_bulk(pull_requests)
-            result.stored_counts['issues'] = self.repo.store_issues_bulk(all_issues)
-            result.stored_counts['file_changes'] = self.repo.store_file_changes_bulk(all_file_changes)
+            result.stored_counts['merged_pull_requests'] = self.repo.store_pull_requests_bulk(
+                miner_eval.merged_pull_requests
+            )
+            result.stored_counts['open_pull_requests'] = self.repo.store_pull_requests_bulk(
+                miner_eval.open_pull_requests
+            )
+            result.stored_counts['closed_pull_requests'] = self.repo.store_pull_requests_bulk(
+                miner_eval.closed_pull_requests
+            )
+            result.stored_counts['issues'] = self.repo.store_issues_bulk(miner_eval.get_all_issues())
+            result.stored_counts['file_changes'] = self.repo.store_file_changes_bulk(miner_eval.get_all_file_changes())
             result.stored_counts['evaluations'] = 1 if self.repo.set_miner_evaluation(miner_eval) else 0
 
             # Commit transaction
@@ -74,7 +79,7 @@ class DatabaseStorage:
             self.db_connection.rollback()
             self.db_connection.autocommit = True
 
-            error_msg = f"Failed to store evaluation data for UID {miner_eval.uid}: {str(ex)}"
+            error_msg = f'Failed to store evaluation data for UID {miner_eval.uid}: {str(ex)}'
             result.success = False
             result.errors.append(error_msg)
             self.logger.error(error_msg)
@@ -83,10 +88,10 @@ class DatabaseStorage:
 
     def _log_storage_summary(self, counts: Dict[str, int]):
         """Log a summary of what was stored"""
-        self.logger.info("Storage Summary:")
+        self.logger.info('Storage Summary:')
         for entity_type, count in counts.items():
             if count > 0:
-                self.logger.info(f"  - {entity_type}: {count}")
+                self.logger.info(f'  - {entity_type}: {count}')
 
     def close(self):
         if self.db_connection:

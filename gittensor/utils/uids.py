@@ -1,10 +1,9 @@
 from typing import List
 
 import bittensor as bt
-import numpy as np
 
 
-def check_uid_availability(metagraph: "bt.metagraph.Metagraph", uid: int, vpermit_tao_limit: int) -> bool:
+def check_uid_availability(metagraph: 'bt.metagraph.Metagraph', uid: int, vpermit_tao_limit: int) -> bool:
     """Return whether a UID is eligible for querying.
 
     Args:
@@ -36,18 +35,10 @@ def get_all_uids(self, exclude: List[int] = []) -> set[int]:
         Set of miner UIDs that are serving and within the validator-permit TAO limit.
         UID ``0`` is always included.
     """
-    metagraph: "bt.metagraph.Metagraph" = self.metagraph
-    vpermit_tao_limit: int = getattr(self.config.neuron, "vpermit_tao_limit", 4096)
-
-    # Get all available miner UIDs, excluding specified ones and applying
-    # serving / vpermit filters.
-    available_miner_uids = {
-        uid
-        for uid in range(metagraph.n.item())
-        if uid not in exclude and check_uid_availability(metagraph, uid, vpermit_tao_limit)
-    }
+    # Get all available miner UIDs, excluding specified ones
+    available_miner_uids = {uid for uid in range(self.metagraph.n.item()) if uid not in exclude}
 
     # Ensure miner UID 0 is always included (subnet requirement)
     available_miner_uids.add(0)
 
-    return available_miner_uids
+    return sorted(available_miner_uids)

@@ -13,6 +13,7 @@ from typing import List, TypeVar
 import numpy as np
 
 from gittensor.classes import FileChange, Issue, Miner, MinerEvaluation, PullRequest
+from gittensor.validator.configurations.tier_config import Tier
 
 from .queries import (
     BULK_UPSERT_FILE_CHANGES,
@@ -65,7 +66,7 @@ class BaseRepository:
                 return True
         except Exception as e:
             self.db.rollback()
-            self.logger.error(f"Error executing command: {e}")
+            self.logger.error(f'Error executing command: {e}')
             return False
 
     def set_entity(self, query: str, params: tuple) -> bool:
@@ -120,7 +121,6 @@ class Repository(BaseRepository):
         # Prepare data for bulk insert
         values = []
         for pr in pull_requests:
-
             # uid is causing issues bc it keeps remaining as an np.int64
             if isinstance(pr.uid, np.integer):
                 pr.uid = pr.uid.item()
@@ -136,6 +136,7 @@ class Repository(BaseRepository):
                     pr.author_login,
                     pr.merged_at,
                     pr.created_at,
+                    pr.pr_state.value,  # Convert PRState enum to string
                     pr.repo_weight_multiplier,
                     pr.base_score,
                     pr.issue_multiplier,
@@ -143,13 +144,17 @@ class Repository(BaseRepository):
                     pr.repository_uniqueness_multiplier,
                     pr.time_decay_multiplier,
                     pr.gittensor_tag_multiplier,
-                    pr.merge_success_multiplier,
+                    pr.credibility_multiplier,
+                    pr.raw_credibility,
+                    pr.credibility_scalar,
                     pr.earned_score,
+                    pr.collateral_score,
                     pr.additions,
                     pr.deletions,
                     pr.commits,
                     pr.total_lines_scored,
                     pr.gittensor_tagged,
+                    pr.low_value_pr,
                     pr.merged_by_login,
                     pr.description,
                     pr.last_edited_at,
@@ -172,7 +177,7 @@ class Repository(BaseRepository):
                 return len(values)
         except Exception as e:
             self.db.rollback()
-            self.logger.error(f"Error in bulk pull request storage: {e}")
+            self.logger.error(f'Error in bulk pull request storage: {e}')
             return 0
 
     def store_issues_bulk(self, issues: List[Issue]) -> int:
@@ -199,6 +204,9 @@ class Repository(BaseRepository):
                     issue.title,
                     issue.created_at,
                     issue.closed_at,
+                    issue.author_login,
+                    issue.state,
+                    issue.author_association,
                 )
             )
 
@@ -214,7 +222,7 @@ class Repository(BaseRepository):
                 return len(values)
         except Exception as e:
             self.db.rollback()
-            self.logger.error(f"Error in bulk issue storage: {e}")
+            self.logger.error(f'Error in bulk issue storage: {e}')
             return 0
 
     def store_file_changes_bulk(self, file_changes: List[FileChange]) -> int:
@@ -263,7 +271,7 @@ class Repository(BaseRepository):
                 return len(values)
         except Exception as e:
             self.db.rollback()
-            self.logger.error(f"Error in bulk file change storage: {e}")
+            self.logger.error(f'Error in bulk file change storage: {e}')
             return 0
 
     def set_miner_evaluation(self, evaluation: MinerEvaluation) -> bool:
@@ -284,12 +292,29 @@ class Repository(BaseRepository):
                 evaluation.failed_reason,
                 evaluation.base_total_score,
                 evaluation.total_score,
+                evaluation.total_collateral_score,
                 evaluation.total_lines_changed,
                 evaluation.total_open_prs,
                 evaluation.total_closed_prs,
                 evaluation.total_merged_prs,
                 evaluation.total_prs,
                 evaluation.unique_repos_count,
+                evaluation.current_tier.value if evaluation.current_tier else None,
+                evaluation.stats_by_tier[Tier.BRONZE].merged_count,
+                evaluation.stats_by_tier[Tier.BRONZE].closed_count,
+                evaluation.stats_by_tier[Tier.BRONZE].total_prs,
+                evaluation.stats_by_tier[Tier.BRONZE].collateral_score,
+                evaluation.stats_by_tier[Tier.BRONZE].earned_score,
+                evaluation.stats_by_tier[Tier.SILVER].merged_count,
+                evaluation.stats_by_tier[Tier.SILVER].closed_count,
+                evaluation.stats_by_tier[Tier.SILVER].total_prs,
+                evaluation.stats_by_tier[Tier.SILVER].collateral_score,
+                evaluation.stats_by_tier[Tier.SILVER].earned_score,
+                evaluation.stats_by_tier[Tier.GOLD].merged_count,
+                evaluation.stats_by_tier[Tier.GOLD].closed_count,
+                evaluation.stats_by_tier[Tier.GOLD].total_prs,
+                evaluation.stats_by_tier[Tier.GOLD].collateral_score,
+                evaluation.stats_by_tier[Tier.GOLD].earned_score,
             )
         ]
 
@@ -302,5 +327,5 @@ class Repository(BaseRepository):
                 return True
         except Exception as e:
             self.db.rollback()
-            self.logger.error(f"Error in miner evaluation storage: {e}")
+            self.logger.error(f'Error in miner evaluation storage: {e}')
             return False
